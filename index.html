@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Military Secure Communication</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #092d51;
+            color: #000000;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 50px auto;
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 15px #073bbd;
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #000000;
+        }
+
+        input[type="email"],
+        input[type="password"],
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 12px;
+            border: 1px solid #777;
+            border-radius: 5px;
+            background: #ffffff;
+            color: #000000;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            background-color: #000000;
+            color: #30ede0;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        #chat {
+            display: none;
+        }
+
+        .chat-window {
+            border: 1px solid #00ff15;
+            border-radius: 5px;
+            height: 300px;
+            overflow-y: auto;
+            padding: 10px;
+            background: #0b0c0c;
+            margin-bottom: 10px;
+        }
+
+        .message {
+            margin: 5px 0;
+            padding: 8px;
+            border-radius: 5px;
+            word-wrap: break-word;
+        }
+
+        .incoming {
+            background-color: #8ed0be;
+        }
+
+        .status {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- LOGIN -->
+    <div class="container" id="login">
+
+        <h2>Secure Login</h2>
+
+        <input
+            type="email"
+            id="username"
+            placeholder="Email (Firebase User)"
+        >
+
+        <input
+            type="password"
+            id="password"
+            placeholder="Password"
+        >
+
+
+        <div id="recaptcha-container-login"></div>
+
+        <button onclick="login()">Login</button>
+
+        <div class="status" id="loginStatus"></div>
+
+    </div>
+
+
+    <!-- CHAT -->
+    <div class="container" id="chat">
+
+        <h2>Secure Chat</h2>
+
+        <input
+        type="tel"
+        id="phoneNumber"
+        placeholder="+91XXXXXXXXXX"
+    >
+       <input
+       type="text"
+       id="code"
+       placeholder="6-digit Verification Code"
+       inputmode="numeric"
+       maxlength="6"
+    >
+
+    <button onclick="enrollPhone()">Enable Phone MFA</button>
+
+    <div id="recaptcha-container"></div>
+
+
+        <div class="chat-window" id="chatWindow"></div>
+
+        <input
+            type="text"
+            id="message"
+            placeholder="Enter secure message..."
+        >
+
+        <button onclick="sendMessage()">Send</button>
+
+        <div class="status" id="chatStatus"></div>
+
+    </div>
+
+
+    <!-- FIREBASE -->
+    <script type="module">
+
+        import { initializeApp }
+            from "https://www.gstatic.com/firebasejs/10.10.0/firebase-app.js";
+
+import {
+    getAuth,
+    signInWithEmailAndPassword,
+    sendEmailVerification,
+    multiFactor,
+    PhoneAuthProvider,
+    PhoneMultiFactorGenerator,
+    RecaptchaVerifier,
+    getMultiFactorResolver
+}
+from "https://www.gstatic.com/firebasejs/10.10.0/firebase-auth.js";
+
+        import {
+            getFirestore,
+            collection,
+            addDoc,
+            onSnapshot,
+            serverTimestamp,
+            query,
+            orderBy,
+            where
+        }
+            from "https://www.gstatic.com/firebasejs/10.10.0/firebase-firestore.js";
+
+
+        const firebaseConfig = {
+             apiKey: "AIzaSyAYME7rapEjx3TRcVir-KC30BTHfw4BPiU",
+             authDomain: "military--communication.firebaseapp.com",
+             projectId: "military--communication",
+             storageBucket: "military--communication.firebasestorage.app",
+             messagingSenderId: "583338796268",
+             appId: "1:583338796268:web:23c74ef347f7d3b07bb1c9",
+             measurementId: "G-SCC1F50177"
+        };
+
+
+        const app = initializeApp(firebaseConfig);
+
+        const auth = getAuth(app);
+
+        const db = getFirestore(app);
+
+
+        window.firebaseServices = {
+
+            auth,
+            signInWithEmailAndPassword,
+            sendEmailVerification,
+            multiFactor,
+            PhoneAuthProvider,
+            PhoneMultiFactorGenerator,
+            RecaptchaVerifier,
+            getMultiFactorResolver,
+
+
+            db,
+            collection,
+            addDoc,
+            onSnapshot,
+            serverTimestamp,
+            query,
+            orderBy,
+            where
+        };
+
+    </script>
+
+
+    <!-- MAIN SCRIPT -->
+    <script> 
+    // ===============================
+// AES-GCM ENCRYPTION
+// ===============================
+
+const SECRET_KEY = "MilitarySecure2026Key123456789";
+
+async function getEncryptionKey() {
+    const encoder = new TextEncoder();
+
+    const keyMaterial = await crypto.subtle.digest(
+        "SHA-256",
+        encoder.encode(SECRET_KEY)
+    );
+
+    return crypto.subtle.importKey(
+        "raw",
+        keyMaterial,
+        {
+            name: "AES-GCM"
+        },
+        false,
+        ["encrypt", "decrypt"]
+    );
+}
+
+
+async function encryptMessage(message) {
+
+    const key = await getEncryptionKey();
+
+    const encoder = new TextEncoder();
+
+    const iv = crypto.getRandomValues(
+        new Uint8Array(12)
+    );
+
+    const encrypted = await crypto.subtle.encrypt(
+        {
+            name: "AES-GCM",
+            iv: iv
+        },
+        key,
+        encoder.encode(message)
+    );
+
+    const encryptedArray = new Uint8Array(encrypted);
+
+    const combined = new Uint8Array(
+        iv.length + encryptedArray.length
+    );
+
+    combined.set(iv);
+    combined.set(encryptedArray, iv.length);
+
+    return btoa(
+        String.fromCharCode(...combined)
+    );
+}
+
+
+async function decryptMessage(encryptedMessage) {
+
+    const key = await getEncryptionKey();
+
+    const combined = Uint8Array.from(
+        atob(encryptedMessage),
+        c => c.charCodeAt(0)
+    );
+
+    const iv = combined.slice(0, 12);
+
+    const encryptedData = combined.slice(12);
+
+    const decrypted = await crypto.subtle.decrypt(
+        {
+            name: "AES-GCM",
+            iv: iv
+        },
+        key,
+        encryptedData
+    );
+
+    return new TextDecoder().decode(decrypted);
+}
+
+let mfaResolver = null;
+let verificationId = null;
+let recaptchaVerifier;
+
+
+function setupRecaptcha() {
+    const { auth, RecaptchaVerifier } = window.firebaseServices;
+
+    if (recaptchaVerifier) {
+        return;
+    }
+
+    recaptchaVerifier = new RecaptchaVerifier(
+        auth,
+        "recaptcha-container",
+        {
+            size: "normal"
+        }
+    );
+
+    recaptchaVerifier.render();
+}
+
+async function enrollPhone() {
+
+    const phoneNumber =
+        document.getElementById("phoneNumber").value.trim();
+
+    const loginStatus =
+        document.getElementById("chatStatus");
+
+    if (!phoneNumber) {
+        loginStatus.textContent =
+            "Enter your phone number.";
+        return;
+    }
+
+    loginStatus.textContent =
+        "Demo MFA: Enter the 6-digit verification code.";
+
+    const mfaButton =
+        document.querySelector('button[onclick="enrollPhone()"]');
+
+    mfaButton.textContent = "Verify MFA Code";
+    mfaButton.onclick = verifyDemoMfa;
+}
+async function verifyDemoMfa() {
+
+    const code =
+        document.getElementById("code").value.trim();
+
+    const loginStatus =
+        document.getElementById("chatStatus");
+
+    if (!/^\d{6}$/.test(code)) {
+        loginStatus.textContent =
+            "Enter a valid 6-digit verification code.";
+        return;
+    }
+
+    if (code === "123456") {
+        loginStatus.textContent =
+            "Demo MFA verified successfully!";
+    } else {
+        loginStatus.textContent =
+            "Invalid verification code.";
+    }
+}
+
+async function login() {
+
+            const user =
+                document.getElementById("username").value.trim();
+
+            const pass =
+                document.getElementById("password").value;
+
+            const code =
+                document.getElementById("code").value.trim();
+
+            const loginStatus =
+                document.getElementById("loginStatus");
+
+
+            /*
+             * The verification code is currently only checked
+             * for the required 6-digit format.
+             *
+             * It is NOT a real Firebase MFA/2FA verification.
+             */
+           if (!user || !pass) {
+            loginStatus.textContent = 
+             "Enter email and password.";
+
+    return;
+}
+
+            try {
+
+                const {
+                    auth,
+                    signInWithEmailAndPassword,
+                    sendEmailVerification,
+                    PhoneAuthProvider,
+                    PhoneMultiFactorGenerator,
+                    getMultiFactorResolver
+                } = window.firebaseServices;
+
+
+                try {
+
+    await signInWithEmailAndPassword(
+        auth,
+        user,
+        pass
+    );
+
+    const currentUser = auth.currentUser;
+
+if (currentUser && !currentUser.emailVerified) {
+    await sendEmailVerification(currentUser);
+
+    loginStatus.textContent =
+        "Verification email sent. Please check your Gmail and verify your email.";
+    return;
+}
+
+} catch (error) {
+
+    if (error.code !== "auth/multi-factor-auth-required") {
+        throw error;
+    }
+
+    mfaResolver = getMultiFactorResolver(auth, error);
+
+    setupRecaptcha();
+
+    const phoneAuthProvider =
+        new PhoneAuthProvider(auth);
+
+    verificationId =
+        await phoneAuthProvider.verifyPhoneNumber(
+            {
+                multiFactorHint: mfaResolver.hints[0],
+                session: mfaResolver.session
+            },
+            recaptchaVerifier
+        );
+
+    loginStatus.textContent =
+        "SMS code sent. Enter the 6-digit code.";
+        const loginButton =
+    document.querySelector("#login button");
+loginButton.textContent = "Verify Code";
+loginButton.onclick = verifyMfaCode;
+    return;
+}
+
+                document.getElementById("login").style.display=
+                    "none";
+
+                document.getElementById("chat").style.display =
+                    "block";
+
+                initChatListener();
+
+
+            } catch (error) {
+
+                loginStatus.textContent =
+                    "Login failed: " + error.message;
+            }
+        }
+
+        async function verifyEnrollmentCode() {
+
+            const code =
+                document.getElementById("code").value.trim();
+
+            const loginStatus =
+                document.getElementById("loginStatus");
+
+            if (!/^\d{6}$/.test(code)) {
+                loginStatus.textContent =
+                    "Enter the 6-digit SMS code.";
+                return;
+            }
+
+            try {
+
+                const {
+                    auth,
+                    multiFactor,
+                    PhoneAuthProvider,
+                    PhoneMultiFactorGenerator
+                } = window.firebaseServices;
+
+                const user = auth.currentUser;
+
+                const credential =
+                    PhoneAuthProvider.credential(
+                        verificationId,
+                        code
+                    );
+
+                const assertion =
+                    PhoneMultiFactorGenerator.assertion(
+                        credential
+                    );
+
+                await multiFactor(user).enroll(
+                    assertion,
+                    "My Phone"
+                );
+
+                loginStatus.textContent =
+                    "Phone MFA enabled successfully!";
+
+            } catch (error) {
+
+                loginStatus.textContent =
+                    "MFA verification failed: " + error.message;
+            }
+        }
+
+        async function verifyMfaCode() {
+
+    const code =
+        document.getElementById("code").value.trim();
+
+    const loginStatus =
+        document.getElementById("loginStatus");
+
+    if (!/^\d{6}$/.test(code)) {
+        loginStatus.textContent =
+            "Enter the 6-digit SMS code.";
+        return;
+    }
+
+    try {
+
+        const {
+            PhoneAuthProvider,
+            PhoneMultiFactorGenerator
+        } = window.firebaseServices;
+
+        const credential =
+            PhoneAuthProvider.credential(
+                verificationId,
+                code
+            );
+
+        const assertion =
+            PhoneMultiFactorGenerator.assertion(
+                credential
+            );
+
+        await mfaResolver.resolveSignIn(
+            assertion
+        );
+
+        document.getElementById("login").style.display =
+            "none";
+
+        document.getElementById("chat").style.display =
+            "block";
+
+        ;
+        initChatListener()
+
+    } catch (error) {
+        loginStatus.textContent =
+            "Verification failed: " + error.message;
+    }
+}
+
+        async function sendMessage() {
+
+            const input =
+                document.getElementById("message");
+
+            const text =
+                input.value.trim();
+
+            const chatStatus =
+                document.getElementById("chatStatus");
+
+
+            if (!text) {
+                return;
+            }
+
+
+            // Encrypt the message using AES-GCM
+            const encryptedMessage = await encryptMessage(text);
+
+            try {
+
+                const {
+                    db,
+                    collection,
+                    addDoc,
+                    serverTimestamp
+                } = window.firebaseServices;
+
+
+                await addDoc(
+                    collection(db, "messages"),
+                    {
+                        text: encryptedMessage,
+                        userId: window.firebaseServices.auth.currentUser.uid,
+                        timestamp: serverTimestamp()
+                    }
+                );
+
+                input.value = "";
+
+                chatStatus.textContent =
+                    "Message sent successfully.";
+
+
+            } catch (error) {
+
+                chatStatus.textContent =
+                    "Message could not be sent: " + error.message;
+            }
+        }
+
+function initChatListener(){
+    const {
+         db,
+         auth,
+         collection, 
+         onSnapshot, 
+         query,
+         orderBy,
+         where
+         } = window.firebaseServices;
+         const chatWindow = 
+          document.getElementById("chatWindow");
+          const messagesQuery = 
+           query( 
+            collection(db, "messages"),
+            where("userId", "==", auth.currentUser.uid),
+            orderBy("timestamp", "asc") 
+        );
+        onSnapshot( 
+            messagesQuery, 
+            (snapshot) => {
+                chatWindow.innerHTML = "";
+
+              snapshot.forEach(async (doc) => {
+                    const data = doc.data();
+
+                    const message =
+                    document.createElement("div");
+
+                    message.className =
+                    "message incoming";
+
+                    const decryptedText = await decryptMessage(data.text);
+                    message.textContent = decryptedText;
+
+                    chatWindow.appendChild(message); 
+                });
+
+                chatWindow.scrollTop =
+                chatWindow.scrollHeight; 
+            },
+
+            (error) => {
+
+                document.getElementById("chatStatus") 
+                .textContent =
+                "Unable to load messages: " + error.message; 
+            } 
+        ); 
+    }
+
+    </script> 
+     
+     </body> 
+
+     </html>
