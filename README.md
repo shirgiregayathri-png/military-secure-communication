@@ -1,6 +1,13 @@
 # Military Secure Communication
 
 A secure communication web application designed to provide protected messaging using modern authentication and encryption techniques.
+## Screenshots
+
+### Login Page
+![Login Page](Screenshot%202026-10-10%20134546.png)
+
+### Secure Chat
+![Secure Chat](Screenshot%202026-10-10%20134617.png)
 
 ## Project Overview
 
