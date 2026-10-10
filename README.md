@@ -47,7 +47,7 @@ military-secure-communication/
 
 ## Project Status
 
-The project is currently under development, with secure authentication, encryption, and Firebase-based message storage implemented.
+The project has implemented Firebase authentication, AES-GCM message encryption, and user-specific Firestore storage with authentication-based security rules. Further improvements and testing are ongoing.
 
 ## Author
 
